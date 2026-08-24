@@ -25,6 +25,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -1110,7 +1111,9 @@ class MainActivity : ComponentActivity() {
 
         AndroidView(
             modifier =
-                Modifier.fillMaxSize(),
+                Modifier
+                    .fillMaxSize()
+                    .navigationBarsPadding(),
             factory = { context ->
 
                 WebView(context).apply {
