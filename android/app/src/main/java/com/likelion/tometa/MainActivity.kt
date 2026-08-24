@@ -97,7 +97,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        WebView.setWebContentsDebuggingEnabled(true)
+        WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
 
         deviceIdProvider = DeviceIdProvider(applicationContext)
         healthConnectManager = HealthConnectManager(applicationContext)
