@@ -76,6 +76,11 @@ class MainActivity : ComponentActivity() {
         private const val WEB_VIEW_URL_KEY = "web_view_url"
         private const val ANONYMOUS_SESSION_COOKIE_NAME = "anonymous_session"
         private const val MAX_WEB_VIEW_STATE_BYTES = 512 * 1024
+
+        private const val INITIAL_HEALTH_SYNC_DAYS = 30L
+        private const val FOREGROUND_HEALTH_SYNC_DAYS = 2L
+        private const val FOREGROUND_SYNC_MIN_INTERVAL_MILLIS =
+            15L * 60L * 1000L
     }
 
     private var currentWebView: WebView? = null
@@ -88,6 +93,7 @@ class MainActivity : ComponentActivity() {
     private var healthConnectJob: Job? = null
     private var healthSyncJob: Job? = null
     private var pushRegistrationJob: Job? = null
+    private var lastForegroundHealthSyncAtMillis = 0L
 
     private lateinit var healthConnectManager: HealthConnectManager
     private lateinit var healthDeviceTokenStore: HealthDeviceTokenStore
@@ -136,6 +142,12 @@ class MainActivity : ComponentActivity() {
                 savedUrl = savedInstanceState?.getString(WEB_VIEW_URL_KEY)
             )
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+
+        syncHealthDataOnForeground()
     }
 
     @WebViewCompat.ExperimentalSaveState
@@ -296,6 +308,94 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private suspend fun syncRecentHealthDataSafely(
+        days: Long
+    ): Boolean {
+        val hasToken = try {
+            !healthDeviceTokenStore
+                .getToken()
+                .isNullOrBlank()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            false
+        }
+
+        if (!hasToken) {
+            return false
+        }
+
+        if (!healthConnectManager.isAvailable()) {
+            return false
+        }
+
+        val hasRequiredPermissions = try {
+            healthConnectManager.hasAllPermissions()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            false
+        }
+
+        if (!hasRequiredPermissions) {
+            return false
+        }
+
+        return try {
+            healthSyncCoordinator.syncRecent(
+                days = days
+            )
+            true
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun syncHealthDataOnForeground() {
+        if (
+            healthConnectJob?.isActive == true ||
+            healthSyncJob?.isActive == true
+        ) {
+            return
+        }
+
+        val now =
+            System.currentTimeMillis()
+
+        if (
+            lastForegroundHealthSyncAtMillis > 0L &&
+            now - lastForegroundHealthSyncAtMillis <
+            FOREGROUND_SYNC_MIN_INTERVAL_MILLIS
+        ) {
+            return
+        }
+
+        val job = lifecycleScope.launch {
+            val synced =
+                syncRecentHealthDataSafely(
+                    days =
+                        FOREGROUND_HEALTH_SYNC_DAYS
+                )
+
+            if (synced) {
+                lastForegroundHealthSyncAtMillis =
+                    System.currentTimeMillis()
+
+                updateBackgroundSyncScheduleSafely()
+            }
+        }
+
+        healthSyncJob = job
+
+        job.invokeOnCompletion {
+            if (healthSyncJob === job) {
+                healthSyncJob = null
+            }
+        }
+    }
+
     private fun connectHealthDevice(replyProxy: JavaScriptReplyProxy) {
         val cookieHeader = getAnonymousSessionCookieHeader()
 
@@ -322,6 +422,17 @@ class MainActivity : ComponentActivity() {
             }
 
             if (connectionSucceeded) {
+                val synced =
+                    syncRecentHealthDataSafely(
+                        days =
+                            INITIAL_HEALTH_SYNC_DAYS
+                    )
+
+                if (synced) {
+                    lastForegroundHealthSyncAtMillis =
+                        System.currentTimeMillis()
+                }
+
                 updateBackgroundSyncScheduleSafely()
             }
 
@@ -391,6 +502,9 @@ class MainActivity : ComponentActivity() {
             }
 
             if (result == HealthConnectWebBridge.RESULT_SYNC_SUCCESS) {
+                lastForegroundHealthSyncAtMillis =
+                    System.currentTimeMillis()
+
                 updateBackgroundSyncScheduleSafely()
             }
 
