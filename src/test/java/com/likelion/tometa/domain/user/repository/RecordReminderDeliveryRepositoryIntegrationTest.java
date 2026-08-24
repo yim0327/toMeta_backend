@@ -15,6 +15,7 @@ import java.time.LocalTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 @DataJpaTest(properties = {
         "spring.jpa.hibernate.ddl-auto=create-drop",
@@ -123,6 +124,41 @@ class RecordReminderDeliveryRepositoryIntegrationTest {
                 NOW,
                 NOW.minusMinutes(5)
         ));
+    }
+
+    @Test
+    void markSent_storesCompletionTime() {
+        User user = saveUserWithReminder(LocalTime.of(15, 40));
+        RecordReminderDelivery delivery = savePendingDelivery(user);
+        LocalDateTime startedAt = NOW.minusSeconds(3);
+        LocalDateTime sentAt = NOW.plusNanos(123_456_000);
+
+        assertEquals(1, deliveryRepository.claim(
+                user.getId(),
+                REMINDER_DATE,
+                "attempt-sent",
+                startedAt,
+                startedAt.minusMinutes(5)
+        ));
+        assertEquals(1, deliveryRepository.beginDelivery(
+                user.getId(),
+                REMINDER_DATE,
+                "attempt-sent",
+                startedAt
+        ));
+        assertEquals(1, deliveryRepository.markSent(
+                user.getId(),
+                REMINDER_DATE,
+                "attempt-sent",
+                sentAt
+        ));
+
+        RecordReminderDelivery sentDelivery = deliveryRepository
+                .findById(delivery.getId())
+                .orElseThrow();
+        assertEquals("sent", sentDelivery.getNotificationStatus());
+        assertEquals(sentAt, sentDelivery.getNotificationSentAt());
+        assertNull(sentDelivery.getNotificationStartedAt());
     }
 
     private User saveUserWithReminder(LocalTime reminderTime) {

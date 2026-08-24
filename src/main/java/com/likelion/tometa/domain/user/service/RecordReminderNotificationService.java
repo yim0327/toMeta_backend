@@ -62,12 +62,15 @@ public class RecordReminderNotificationService {
                             deliveryStarted
                     )
             );
+            LocalDateTime sentAt = LocalDateTime
+                    .now(clock.withZone(KOREA_ZONE))
+                    .truncatedTo(ChronoUnit.MICROS);
 
             int markedSent = deliveryRepository.markSent(
                     userId,
                     reminderDate,
                     attemptId,
-                    startedAt
+                    sentAt
             );
             if (markedSent == 0) {
                 throw new IllegalStateException(
