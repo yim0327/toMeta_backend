@@ -39,7 +39,7 @@ class FlywayMigrationIntegrationTest {
         assertEquals(30, count(jdbcUrl, "skin_care_tips"));
         assertEquals(30, countDistinctSkinCareTipContents(jdbcUrl));
         assertEquals(30, activeSkinCareTipCount(jdbcUrl));
-        assertEquals(13, successfulMigrationCount(jdbcUrl));
+        assertEquals(14, successfulMigrationCount(jdbcUrl));
     }
 
     @Test
@@ -63,7 +63,7 @@ class FlywayMigrationIntegrationTest {
         assertEquals(100, countDistinctIngredientNames(jdbcUrl));
         assertEquals(30, count(jdbcUrl, "skin_care_tips"));
         assertEquals(30, countDistinctSkinCareTipContents(jdbcUrl));
-        assertEquals(13, successfulMigrationCount(jdbcUrl));
+        assertEquals(14, successfulMigrationCount(jdbcUrl));
     }
 
     @Test
@@ -103,7 +103,7 @@ class FlywayMigrationIntegrationTest {
                 )
         );
         assertEquals(30, count(jdbcUrl, "skin_care_tips"));
-        assertEquals(13, successfulMigrationCount(jdbcUrl));
+        assertEquals(14, successfulMigrationCount(jdbcUrl));
     }
 
     @Test
@@ -136,7 +136,7 @@ class FlywayMigrationIntegrationTest {
                         + "and content = '" + existingTip + "' "
                         + "and created_at = timestamp '2025-01-02 03:04:05'"
         ));
-        assertEquals(13, successfulMigrationCount(jdbcUrl));
+        assertEquals(14, successfulMigrationCount(jdbcUrl));
     }
 
     @Test
