@@ -97,18 +97,25 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        WebView.setWebContentsDebuggingEnabled(true)
+
         deviceIdProvider = DeviceIdProvider(applicationContext)
         healthConnectManager = HealthConnectManager(applicationContext)
         healthDeviceTokenStore = HealthDeviceTokenStore(applicationContext)
+
         healthConnectRepository = HealthConnectRepository(
             api = HealthConnectApiClient.create(ToMetaEndpoint.API_BASE_URL),
             deviceIdProvider = deviceIdProvider,
             healthDeviceTokenStore = healthDeviceTokenStore
         )
+
         healthSyncCoordinator = HealthSyncCoordinator(
-            requestFactory = HealthSyncRequestFactory(HealthConnectReader(healthConnectManager)),
+            requestFactory = HealthSyncRequestFactory(
+                HealthConnectReader(healthConnectManager)
+            ),
             healthConnectRepository = healthConnectRepository
         )
+
         pushTokenRepository = PushTokenRepository(
             api = PushTokenApiClient.create(ToMetaEndpoint.API_BASE_URL),
             deviceIdProvider = deviceIdProvider
@@ -140,7 +147,12 @@ class MainActivity : ComponentActivity() {
 
             if (WebViewFeature.isFeatureSupported(WebViewFeature.SAVE_STATE)) {
                 val webViewState = Bundle()
-                WebViewCompat.saveState(webView, webViewState, MAX_WEB_VIEW_STATE_BYTES, false)
+                WebViewCompat.saveState(
+                    webView,
+                    webViewState,
+                    MAX_WEB_VIEW_STATE_BYTES,
+                    false
+                )
                 outState.putBundle(WEB_VIEW_STATE_KEY, webViewState)
             }
         }
@@ -167,7 +179,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun getAnonymousSessionCookieHeader(): String? {
-        val cookieHeader = CookieManager.getInstance().getCookie(ToMetaEndpoint.WEB_URL)
+        val cookieHeader = CookieManager
+            .getInstance()
+            .getCookie(ToMetaEndpoint.API_BASE_URL)
+
         val anonymousSessionValue = cookieHeader
             ?.split(";")
             ?.map { it.trim() }
@@ -177,7 +192,10 @@ class MainActivity : ComponentActivity() {
             ?.substringAfter("=", missingDelimiterValue = "")
             ?.trim()
 
-        return if (cookieHeader.isNullOrBlank() || anonymousSessionValue.isNullOrBlank()) {
+        return if (
+            cookieHeader.isNullOrBlank() ||
+            anonymousSessionValue.isNullOrBlank()
+        ) {
             null
         } else {
             cookieHeader
@@ -411,10 +429,18 @@ class MainActivity : ComponentActivity() {
 
         val job = lifecycleScope.launch {
             val result = try {
-                FirebaseMessaging.getInstance().register().awaitCompletion()
-                val installationId = getFirebaseInstallationId()
+                FirebaseMessaging.getInstance()
+                    .register()
+                    .awaitCompletion()
 
-                if (!FirebaseInstallationIdStore(applicationContext).save(installationId)) {
+                val installationId =
+                    getFirebaseInstallationId()
+
+                if (
+                    !FirebaseInstallationIdStore(
+                        applicationContext
+                    ).save(installationId)
+                ) {
                     throw IllegalStateException(
                         "Firebase Installation ID 저장에 실패했습니다."
                     )
@@ -432,7 +458,10 @@ class MainActivity : ComponentActivity() {
                 HealthConnectWebBridge.RESULT_UNAVAILABLE
             }
 
-            completePushRequest(replyProxy, result)
+            completePushRequest(
+                replyProxy,
+                result
+            )
         }
 
         pushRegistrationJob = job
@@ -473,7 +502,9 @@ class MainActivity : ComponentActivity() {
                 } else {
                     continuation.resumeWithException(
                         task.exception
-                            ?: IllegalStateException("Firebase 등록에 실패했습니다.")
+                            ?: IllegalStateException(
+                                "Firebase 등록에 실패했습니다."
+                            )
                     )
                 }
             }
@@ -482,40 +513,44 @@ class MainActivity : ComponentActivity() {
 
     private suspend fun getFirebaseInstallationId(): String {
         return suspendCancellableCoroutine { continuation ->
-            FirebaseInstallations.getInstance().id.addOnCompleteListener { task ->
-                if (!continuation.isActive) {
-                    return@addOnCompleteListener
-                }
+            FirebaseInstallations.getInstance()
+                .id
+                .addOnCompleteListener { task ->
 
-                if (!task.isSuccessful) {
-                    continuation.resumeWithException(
-                        task.exception
-                            ?: IllegalStateException(
+                    if (!continuation.isActive) {
+                        return@addOnCompleteListener
+                    }
+
+                    if (!task.isSuccessful) {
+                        continuation.resumeWithException(
+                            task.exception
+                                ?: IllegalStateException(
+                                    "Firebase Installation ID 조회에 실패했습니다."
+                                )
+                        )
+                        return@addOnCompleteListener
+                    }
+
+                    val installationId = task.result
+
+                    if (!installationId.isNullOrBlank()) {
+                        continuation.resume(installationId)
+                    } else {
+                        continuation.resumeWithException(
+                            IllegalStateException(
                                 "Firebase Installation ID 조회에 실패했습니다."
                             )
-                    )
-                    return@addOnCompleteListener
-                }
-
-                val installationId = task.result
-
-                if (!installationId.isNullOrBlank()) {
-                    continuation.resume(installationId)
-                } else {
-                    continuation.resumeWithException(
-                        IllegalStateException(
-                            "Firebase Installation ID 조회에 실패했습니다."
                         )
-                    )
+                    }
                 }
-            }
         }
     }
 
     private fun createFileChooserIntent(
         fileChooserParams: WebChromeClient.FileChooserParams
     ): Intent {
-        val acceptTypes = fileChooserParams.acceptTypes
+        val acceptTypes = fileChooserParams
+            .acceptTypes
             .filter { it.isNotBlank() }
 
         val acceptsImage = acceptTypes.isEmpty() ||
@@ -542,7 +577,12 @@ class MainActivity : ComponentActivity() {
         }.getOrElse {
             Intent(Intent.ACTION_GET_CONTENT).apply {
                 addCategory(Intent.CATEGORY_OPENABLE)
-                type = if (acceptsImage) "image/*" else "*/*"
+                type =
+                    if (acceptsImage) {
+                        "image/*"
+                    } else {
+                        "*/*"
+                    }
             }
         }
 
@@ -806,6 +846,7 @@ class MainActivity : ComponentActivity() {
     private fun cancelPendingFileChooser() {
         val callback =
             pendingFileChooserCallback
+
         val cameraFile =
             pendingCameraFile
 
@@ -866,8 +907,7 @@ class MainActivity : ComponentActivity() {
                 if (!granted) {
                     completePushRequest(
                         replyProxy,
-                        HealthConnectWebBridge
-                            .RESULT_DENIED
+                        HealthConnectWebBridge.RESULT_DENIED
                     )
                     return@rememberLauncherForActivityResult
                 }
@@ -879,8 +919,7 @@ class MainActivity : ComponentActivity() {
                 ) {
                     completePushRequest(
                         replyProxy,
-                        HealthConnectWebBridge
-                            .RESULT_DENIED
+                        HealthConnectWebBridge.RESULT_DENIED
                     )
                     return@rememberLauncherForActivityResult
                 }
@@ -1087,6 +1126,17 @@ class MainActivity : ComponentActivity() {
                     settings.allowContentAccess =
                         true
 
+                    CookieManager
+                        .getInstance()
+                        .setAcceptCookie(true)
+
+                    CookieManager
+                        .getInstance()
+                        .setAcceptThirdPartyCookies(
+                            this,
+                            true
+                        )
+
                     val bridgeAttached =
                         HealthConnectWebBridge(
                             trustedOrigin =
@@ -1235,6 +1285,10 @@ class MainActivity : ComponentActivity() {
                                     view,
                                     url
                                 )
+
+                                CookieManager
+                                    .getInstance()
+                                    .flush()
 
                                 if (
                                     !bridgeAttached &&
