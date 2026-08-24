@@ -10,7 +10,6 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.Clock;
-import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -18,13 +17,14 @@ import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
+import static com.likelion.tometa.domain.user.constant.RecordReminderPolicy.DELIVERY_TIMEOUT;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class RecordReminderScheduler {
 
     private static final ZoneId KOREA_ZONE = ZoneId.of("Asia/Seoul");
-    private static final Duration NOTIFICATION_TIMEOUT = Duration.ofMinutes(5);
 
     private final UserNotificationSettingRepository userNotificationSettingRepository;
     private final DailyRecordRepository dailyRecordRepository;
@@ -45,7 +45,7 @@ public class RecordReminderScheduler {
                 .findRecordReminderTargetUserIds(
                         recordDate,
                         reminderTime,
-                        now.minus(NOTIFICATION_TIMEOUT)
+                        now.minus(DELIVERY_TIMEOUT)
                 );
 
         int skipped = 0;
@@ -105,7 +105,7 @@ public class RecordReminderScheduler {
     public void recoverStaleRecordReminderDeliveries() {
         LocalDateTime staleBefore = currentDateTime()
                 .truncatedTo(ChronoUnit.MINUTES)
-                .minus(NOTIFICATION_TIMEOUT);
+                .minus(DELIVERY_TIMEOUT);
         try {
             int recovered = deliveryRepository
                     .markStaleDeliveriesUnknown(staleBefore);

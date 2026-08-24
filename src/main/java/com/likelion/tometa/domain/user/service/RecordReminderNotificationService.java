@@ -7,7 +7,6 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
-import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -15,12 +14,13 @@ import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static com.likelion.tometa.domain.user.constant.RecordReminderPolicy.DELIVERY_TIMEOUT;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class RecordReminderNotificationService {
 
-    private static final Duration DELIVERY_TIMEOUT = Duration.ofMinutes(5);
     private static final ZoneId KOREA_ZONE = ZoneId.of("Asia/Seoul");
 
     private final RecordReminderDeliveryRepository deliveryRepository;
@@ -67,7 +67,7 @@ public class RecordReminderNotificationService {
                     userId,
                     reminderDate,
                     attemptId,
-                    requestedAt
+                    startedAt
             );
             if (markedSent == 0) {
                 throw new IllegalStateException(

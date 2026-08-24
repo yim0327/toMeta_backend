@@ -130,4 +130,15 @@ class RecordReminderSchedulerTest {
                 NOW.minusMinutes(5)
         );
     }
+
+    @Test
+    void recovery_doesNotThrowWhenRepositoryFails() {
+        when(deliveryRepository.markStaleDeliveriesUnknown(
+                NOW.minusMinutes(5)
+        )).thenThrow(new RuntimeException("database unavailable"));
+
+        assertDoesNotThrow(
+                scheduler::recoverStaleRecordReminderDeliveries
+        );
+    }
 }
