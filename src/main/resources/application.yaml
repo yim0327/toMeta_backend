@@ -58,8 +58,8 @@ app:
 
   report:
     scheduler:
-      daily-generation-cron: "0 35 12 * * *"
-      weekly-generation-cron: "0 35 12 * * TUE"
+      daily-generation-cron: "0 42 12 * * *"
+      weekly-generation-cron: "0 42 12 * * TUE"
       weekly-notification-cron: "0 * * * * MON"
       weekly-notification-recovery-cron: "0 * * * * *"
 
